@@ -1,0 +1,361 @@
+import React, { useState, useEffect } from 'react';
+import {
+  X,
+  Download,
+  Calendar,
+  MapPin,
+  CheckCircle2,
+  ShieldAlert,
+  Award,
+  Phone,
+  User,
+  Save,
+  LogIn,
+  Check,
+  QrCode as QrIcon,
+} from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { Initiative } from '../types/initiative';
+import { downloadIcsFile } from '../utils/calendar';
+import { useAuth } from '../lib/auth';
+
+interface VolunteerPassModalProps {
+  initiative: Initiative | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onOpenCertificate: (initiative: Initiative, volunteerName: string) => void;
+  onShowToast: (message: string) => void;
+  onOpenAuthModal?: () => void;
+}
+
+export const VolunteerPassModal: React.FC<VolunteerPassModalProps> = ({
+  initiative,
+  isOpen,
+  onClose,
+  onOpenCertificate,
+  onShowToast,
+  onOpenAuthModal,
+}) => {
+  const { user, updateProfile } = useAuth();
+
+  // Pre-fill state automatically from active logged-in user's profile
+  const [volunteerName, setVolunteerName] = useState('Volunteer Advocate');
+  const [phone, setPhone] = useState('0917-000-0000');
+  const [bloodType, setBloodType] = useState('O+');
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sync state when modal opens or user profile loads
+  useEffect(() => {
+    if (user) {
+      setVolunteerName(user.displayName || 'Volunteer Advocate');
+      setPhone(user.phone || '0917-000-0000');
+      setBloodType(user.bloodType || 'O+');
+    } else {
+      setVolunteerName('Volunteer Advocate');
+      setPhone('0917-000-0000');
+      setBloodType('O+');
+    }
+  }, [user, isOpen]);
+
+  if (!isOpen || !initiative) return null;
+
+  // Real registration token tied to Firestore UID and Initiative
+  const passToken = user
+    ? `SDG-REG:${initiative.id}:${user.uid}`
+    : `SDG-GUEST:${initiative.id}:anon`;
+
+  const displayPassCode = user
+    ? `SDG-${initiative.id.replace('ini-', '').slice(-4).toUpperCase()}-${user.uid.slice(-6).toUpperCase()}`
+    : `SDG-${initiative.id.replace('ini-', '').slice(-4).toUpperCase()}-GUEST`;
+
+  const handleSaveInfo = async () => {
+    if (user) {
+      setIsSaving(true);
+      try {
+        await updateProfile({
+          displayName: volunteerName,
+          phone,
+          bloodType,
+        });
+        onShowToast(`Volunteer pass details updated & synced to your profile!`);
+      } catch (e: any) {
+        onShowToast('Could not save to profile: ' + e?.message);
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      onShowToast('Updated for this session. Sign in to save permanently!');
+    }
+    setIsEditingInfo(false);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div
+        className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center font-black text-sm">
+              S
+            </div>
+            <div>
+              <h3 className="font-extrabold text-base leading-tight">Digital Volunteer Pass</h3>
+              <p className="text-[11px] text-emerald-100">
+                Official Scannable On-Site Check-in Badge & Emergency Card
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center transition"
+          >
+            <X className="w-4 h-4 text-white" />
+          </button>
+        </div>
+
+        {/* Pass Card */}
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1 text-slate-700">
+          {/* Main Visual Badge */}
+          <div className="border-2 border-dashed border-emerald-500/40 rounded-2xl p-5 bg-gradient-to-b from-emerald-50/40 via-white to-slate-50 relative overflow-hidden shadow-xs space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  {initiative.category}
+                </span>
+                <h4 className="text-base sm:text-lg font-black text-slate-900 mt-2 leading-snug">
+                  {initiative.title}
+                </h4>
+              </div>
+
+              {/* Live Scannable QR Code generated by qrcode.react */}
+              <div className="bg-white border-2 border-slate-200 rounded-2xl p-2 flex flex-col items-center justify-center shadow-xs shrink-0">
+                <QRCodeSVG
+                  value={passToken}
+                  size={76}
+                  level="M"
+                  includeMargin={false}
+                  fgColor="#064e3b"
+                />
+                <span className="text-[9px] font-mono text-slate-400 mt-1 uppercase font-bold">
+                  Scan Roster
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Details */}
+            <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200/60">
+              <div>
+                <div className="text-[10px] uppercase font-bold text-slate-400">Pass Code</div>
+                <div className="font-mono font-bold text-emerald-700">{displayPassCode}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-slate-400">Status</div>
+                <div className="font-bold text-emerald-600 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>Registered Volunteer</span>
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-slate-400">Date & Assembly</div>
+                <div className="font-semibold text-slate-800">{initiative.date}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-slate-400">Rendezvous</div>
+                <div className="font-semibold text-slate-800 truncate">{initiative.location}</div>
+              </div>
+            </div>
+
+            {/* Volunteer Personal & Emergency Details (Auto-filled from user profile) */}
+            <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Volunteer Profile Details</span>
+                  {user && (
+                    <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">
+                      Verified Identity
+                    </span>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isEditingInfo) {
+                      handleSaveInfo();
+                    } else {
+                      setIsEditingInfo(true);
+                    }
+                  }}
+                  className="text-emerald-700 hover:text-emerald-800 text-[11px] font-bold flex items-center gap-1 transition"
+                >
+                  {isEditingInfo ? (
+                    <>
+                      <Save className="w-3 h-3" />
+                      <span>{isSaving ? 'Saving...' : 'Save & Sync'}</span>
+                    </>
+                  ) : (
+                    <span>Edit Info</span>
+                  )}
+                </button>
+              </div>
+
+              {isEditingInfo ? (
+                <div className="space-y-2 pt-1 border-t border-slate-100">
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-bold block mb-0.5">
+                      Your Name
+                    </label>
+                    <input
+                      type="text"
+                      value={volunteerName}
+                      onChange={(e) => setVolunteerName(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-slate-500 font-bold block mb-0.5">
+                        Contact Number
+                      </label>
+                      <input
+                        type="text"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 font-bold block mb-0.5">
+                        Blood Type
+                      </label>
+                      <select
+                        value={bloodType}
+                        onChange={(e) => setBloodType(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 text-xs focus:outline-none focus:border-emerald-500"
+                      >
+                        <option value="O+">O+</option>
+                        <option value="A+">A+</option>
+                        <option value="B+">B+</option>
+                        <option value="AB+">AB+</option>
+                        <option value="O-">O-</option>
+                        <option value="A-">A-</option>
+                        <option value="B-">B-</option>
+                        <option value="AB-">AB-</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between text-slate-600 pt-0.5">
+                  <div className="flex items-center gap-2">
+                    {user?.avatarUrl ? (
+                      <img
+                        src={user.avatarUrl}
+                        alt={volunteerName}
+                        className="w-7 h-7 rounded-full object-cover border border-emerald-500/40"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center">
+                        {volunteerName.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <span className="font-bold text-slate-900 block leading-tight">
+                        {volunteerName}
+                      </span>
+                      <div className="text-[11px] text-slate-500 flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-slate-400" />
+                        <span>{phone}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-bold border border-emerald-200">
+                    Blood: {bloodType}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Not signed in notice */}
+          {!user && (
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-center justify-between gap-2">
+              <span className="text-[11px]">
+                Sign in with Google to permanently link passes to your verified profile.
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenAuthModal?.();
+                }}
+                className="shrink-0 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold transition flex items-center gap-1"
+              >
+                <LogIn className="w-3 h-3" />
+                <span>Sign In</span>
+              </button>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button
+              onClick={() => {
+                onClose();
+                onOpenCertificate(initiative, volunteerName);
+              }}
+              className="py-2.5 px-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+            >
+              <Award className="w-4 h-4 text-amber-600" />
+              <span>Preview Certificate</span>
+            </button>
+
+            <button
+              onClick={() => {
+                downloadIcsFile(initiative);
+                onShowToast('Calendar event downloaded to your device!');
+              }}
+              className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+            >
+              <Calendar className="w-4 h-4 text-slate-600" />
+              <span>Save to Calendar</span>
+            </button>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-[11px] text-slate-500 flex items-start gap-2">
+            <ShieldAlert className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <span>
+              Present this digital pass or QR badge to the desk coordinator upon arrival at{' '}
+              {initiative.meetPoint || initiative.location} for attendance logging.
+            </span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+          <button
+            onClick={handlePrint}
+            className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Print or Save PDF</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="px-5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

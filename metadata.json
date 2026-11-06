@@ -1,0 +1,8 @@
+{
+  "name": "Remix Sandigan",
+  "description": "The AI-powered grassroots platform where local ideas in Cagayan de Oro and Bukidnon become active volunteer drives in seconds.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
