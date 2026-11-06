@@ -176,6 +176,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       await setDoc(userDocRef, initialProfile);
       setUser(initialProfile);
+      return initialProfile;
     } catch (err: any) {
       if (err?.code === 'auth/operation-not-allowed' || err?.message?.includes('operation-not-allowed')) {
         throw new Error('Email/Password provider is not yet enabled in your Firebase Console. Please use "Continue with Google" or enable Email/Password under Firebase Authentication > Sign-in method.');
@@ -221,6 +222,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       await setDoc(doc(db, 'users', fbUser.uid), newProfile);
       setUser(newProfile);
+      return newProfile;
     } catch (err: any) {
       if (err?.code === 'auth/operation-not-allowed' || err?.message?.includes('operation-not-allowed')) {
         throw new Error('Email/Password provider is not yet enabled in your Firebase Console. Please use "Continue with Google" or enable Email/Password under Firebase Authentication > Sign-in method.');
