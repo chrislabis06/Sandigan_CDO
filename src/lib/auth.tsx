@@ -178,8 +178,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(initialProfile);
       return initialProfile;
     } catch (err: any) {
+      if (err?.code === 'auth/invalid-credential' || err?.message?.includes('invalid-credential')) {
+        throw new Error('Invalid email or password. Please verify your details, click "Create Account" if you are new, or sign in with Google.');
+      }
       if (err?.code === 'auth/operation-not-allowed' || err?.message?.includes('operation-not-allowed')) {
         throw new Error('Email/Password provider is not yet enabled in your Firebase Console. Please use "Continue with Google" or enable Email/Password under Firebase Authentication > Sign-in method.');
+      }
+      if (err?.code?.startsWith('auth/') || err?.message?.includes('auth/')) {
+        throw new Error(err?.message || 'Authentication failed. Please verify your details.');
       }
       handleFirestoreError(err, OperationType.GET, 'users');
     } finally {
@@ -224,8 +230,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(newProfile);
       return newProfile;
     } catch (err: any) {
+      if (err?.code === 'auth/email-already-in-use' || err?.message?.includes('email-already-in-use')) {
+        throw new Error('This email address is already in use. Please sign in instead.');
+      }
+      if (err?.code === 'auth/weak-password' || err?.message?.includes('weak-password')) {
+        throw new Error('Password is too weak. Please use at least 6 characters.');
+      }
       if (err?.code === 'auth/operation-not-allowed' || err?.message?.includes('operation-not-allowed')) {
         throw new Error('Email/Password provider is not yet enabled in your Firebase Console. Please use "Continue with Google" or enable Email/Password under Firebase Authentication > Sign-in method.');
+      }
+      if (err?.code?.startsWith('auth/') || err?.message?.includes('auth/')) {
+        throw new Error(err?.message || 'Failed to create account. Please verify your details.');
       }
       handleFirestoreError(err, OperationType.CREATE, 'users');
     } finally {
@@ -275,6 +290,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(newProfile);
       return newProfile;
     } catch (err: any) {
+      if (err?.code === 'auth/popup-closed-by-user' || err?.message?.includes('popup-closed-by-user')) {
+        throw new Error('Google sign-in popup was closed before completing. Please try again.');
+      }
+      if (err?.code?.startsWith('auth/') || err?.message?.includes('auth/')) {
+        throw new Error(err?.message || 'Google sign-in could not be completed.');
+      }
       handleFirestoreError(err, OperationType.WRITE, 'users');
     } finally {
       setLoading(false);

@@ -106,7 +106,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
       onClose();
     } catch (err: any) {
-      setError(err?.message || 'Authentication failed. Please verify your details.');
+      let msg = err?.message || 'Authentication failed. Please verify your details.';
+      try {
+        if (typeof msg === 'string' && msg.trim().startsWith('{') && msg.trim().endsWith('}')) {
+          const parsed = JSON.parse(msg);
+          if (parsed?.error) msg = parsed.error;
+        }
+      } catch (e) {
+        // ignore JSON parse error
+      }
+
+      if (msg.includes('auth/invalid-credential') || msg.includes('invalid-credential')) {
+        setError('Invalid email or password. Please check your details, switch to "Sign Up" if you are new, or use "Continue with Google".');
+      } else if (msg.includes('auth/operation-not-allowed') || msg.includes('operation-not-allowed')) {
+        setError('Email/Password provider is not yet enabled in Firebase Console. Please use "Continue with Google" below.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setIsSubmitting(false);
     }
